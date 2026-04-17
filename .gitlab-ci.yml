@@ -1,0 +1,244 @@
+# CI for linters: runs on push and merge requests. Fails pipeline if linters fail.
+stages:
+  - lint
+  - test
+  - integration
+
+# Backend lint (Gradle/Checkstyle)
+lint-backend:
+  stage: lint
+  image: gradle:8.5-jdk17
+  variables:
+    GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle"
+  cache:
+    key: "gradle-${CI_COMMIT_REF_SLUG}"
+    paths:
+      - backend/.gradle/
+      - .gradle/
+  script:
+    - cd backend
+    - ./gradlew --no-daemon clean checkstyleMain checkstyleTest -x test
+  artifacts:
+    when: always
+    reports:
+      # publish Checkstyle XML so MR viewers can download
+      junit: []
+    paths:
+      - backend/build/reports/checkstyle/
+    expire_in: 1 week
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push"'
+      when: always
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: always
+  allow_failure: false
+
+# Frontend lint (ESLint)
+lint-frontend:
+  stage: lint
+  image: node:14
+  cache:
+    key: "node-modules-${CI_COMMIT_REF_SLUG}"
+    paths:
+      - frontend/node_modules/
+  before_script:
+    - cd frontend
+    - npm install
+  script:
+    - npx eslint "src/**/*.{ts,tsx}" -f checkstyle -o eslint-report.xml
+    - npm run lint
+  artifacts:
+    when: always
+    paths:
+      - frontend/eslint-report.xml
+    expire_in: 1 week
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push"'
+      when: always
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: always
+  allow_failure: false
+
+# Added with issue 56
+# Backend tests + coverage (JaCoCo)
+test-backend:
+  stage: test
+  image: gradle:8.5-jdk17
+  variables:
+    GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle"
+  cache:
+    key: "gradle-${CI_COMMIT_REF_SLUG}"
+    paths:
+      - backend/.gradle/
+      - .gradle/
+  script:
+    - cd backend
+    - ./gradlew --no-daemon clean test jacocoTestReport printJacocoSummary
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push"'
+      when: always
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: always
+  allow_failure: false
+  artifacts:
+    when: always
+    reports:
+      junit: backend/build/test-results/**/*.xml
+    paths:
+      - backend/build/reports/jacoco/test/jacocoTestReport.xml
+      - backend/build/reports/jacoco/test/jacocoTestReport.csv
+      - backend/build/test-results/
+    expire_in: 2 weeks
+  coverage: '/JaCoCo Coverage - Instructions: .*\((\d+\\.\d+)%\)/'
+
+# Frontend tests with coverage (Jest)
+test-frontend:
+  stage: test
+  image: node:14
+  cache:
+    key: "node-modules-${CI_COMMIT_REF_SLUG}"
+    paths:
+      - frontend/node_modules/
+  before_script:
+    - cd frontend
+    - npm install
+  script:
+    - mkdir -p test-results
+    - export JEST_JUNIT_OUTPUT=./test-results/junit.xml
+    - npm install jest-junit --no-save
+    - npm run test:coverage -- --reporters=default --reporters=jest-junit
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push"'
+      when: always
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: always
+  allow_failure: false
+  artifacts:
+    when: always
+    paths:
+      - frontend/coverage/lcov.info
+      - frontend/test-results/junit.xml
+      - frontend/junit.xml
+    expire_in: 2 weeks
+    reports:
+      junit: frontend/**/junit.xml
+  coverage: '/All files\s+\|\s+\d+\.\d+\s+\|\s+(\d+\.\d+)%/'
+
+# Ensure pipeline runs only for branches and MRs by default
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push"'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - when: never
+
+# Integration tests (backend + frontend proxy + database) - Playwright UI excluded
+integration-full-stack:
+  stage: integration
+  image: node:18-bullseye
+  services:
+    - name: mariadb:10.6
+      alias: database
+  variables:
+    MYSQL_ROOT_PASSWORD: "pwd"
+    MYSQL_DATABASE: "template_db"
+    DB_DATABASE: "template_db"
+    DB_USER: "root"
+    DB_PASSWORD: "pwd"
+  before_script:
+    - apt-get update -y && apt-get install -y openjdk-17-jdk curl jq mariadb-client
+    - mkdir -p integration/artifacts/junit
+    - cd integration
+    - npm ci
+    - cd ..
+  script: |
+    # Wait for DB service and seed baseline schema/data expected before Flyway V2+
+    i=1
+    while [ $i -le 60 ]; do
+      if mysql -h database -uroot -p"$DB_PASSWORD" -e "SELECT 1" >/dev/null 2>&1; then
+        echo "[ready] database"
+        break
+      fi
+      echo "[wait] database (${i}/60)"
+      i=$((i+1))
+      sleep 2
+    done
+
+    if [ $i -gt 60 ]; then
+      echo "[error] database did not become ready in time"
+      exit 1
+    fi
+
+    mariadb -h database -uroot -p"$DB_PASSWORD" "$DB_DATABASE" < database/scripts/setup.sql
+
+    # Start backend with DB service (Gradle wrapper will use the env vars)
+    cd backend
+    export DB_ADDRESS="jdbc:mysql://database:3306" DB_DATABASE="$DB_DATABASE" DB_USER="$DB_USER" DB_PASSWORD="$DB_PASSWORD"
+    mkdir -p /flyway/sql
+    cp -R ../database/scripts/. /flyway/sql/
+    ./gradlew --no-daemon clean bootRun > ../integration/artifacts/backend-run.log 2>&1 &
+    echo $! > ../integration/artifacts/backend.pid || true
+
+    i=1
+    while [ $i -le 60 ]; do
+      if ! kill -0 "$(cat ../integration/artifacts/backend.pid)" 2>/dev/null; then
+        echo "[error] backend process exited before becoming ready"
+        tail -n 200 ../integration/artifacts/backend-run.log || true
+        exit 1
+      fi
+      if curl -sS --fail http://localhost:8080${BACKEND_READY_PATH:-/api/docs.html} >/dev/null 2>&1; then
+        echo "[ready] backend"
+        break
+      fi
+      echo "[wait] backend (${i}/60)"
+      i=$((i+1))
+      sleep 2
+    done
+
+    if [ $i -gt 60 ]; then
+      echo "[error] backend did not become ready in time"
+      tail -n 200 ../integration/artifacts/backend-run.log || true
+      exit 1
+    fi
+
+    # Start lightweight frontend shell + API proxy server for frontend integration tests
+    cd ..
+    BACKEND_PROXY="http://localhost:8080" node integration/scripts/frontend-proxy-server.mjs > integration/artifacts/frontend-serve.log 2>&1 &
+    echo $! > integration/artifacts/frontend.pid || true
+
+    i=1
+    while [ $i -le 60 ]; do
+      if curl -sS --fail http://localhost:3000${FRONTEND_READY_PATH:-/} >/dev/null 2>&1; then
+        echo "[ready] frontend"
+        break
+      fi
+      echo "[wait] frontend (${i}/60)"
+      i=$((i+1))
+      sleep 2
+    done
+
+    if [ $i -gt 60 ]; then
+      echo "[error] frontend did not become ready in time"
+      tail -n 200 integration/artifacts/frontend-serve.log || true
+      exit 1
+    fi
+
+    # Run backend + frontend scopes only (ui/Playwright remains local-only)
+    BACKEND_BASE_URL=http://localhost:8080 FRONTEND_BASE_URL=http://localhost:3000 INTEGRATION_SCOPE=backend,frontend node integration/run-integration-tests.mjs
+  after_script:
+    - if [ -f integration/artifacts/backend.pid ]; then kill "$(cat integration/artifacts/backend.pid)" || true; fi
+    - if [ -f integration/artifacts/frontend.pid ]; then kill "$(cat integration/artifacts/frontend.pid)" || true; fi
+    - tar -czf integration/artifacts/logs.tar.gz integration/artifacts || true
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - integration/artifacts/junit/*.xml
+    paths:
+      - integration/artifacts/
+    expire_in: 2 weeks
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: always
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      when: always
+  allow_failure: false

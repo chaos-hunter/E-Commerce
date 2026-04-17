@@ -1,0 +1,16 @@
+{
+  "name": "rfm-integration-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node run-integration-tests.mjs",
+    "test:backend": "node run-integration-tests.mjs --scope=backend",
+    "test:frontend": "node run-integration-tests.mjs --scope=frontend",
+    "test:ui": "node run-integration-tests.mjs --scope=ui",
+    "test:ci": "node run-integration-tests.mjs --scope=backend,frontend"
+  }
+  ,
+  "devDependencies": {
+    "playwright": "^1.36.0"
+  }
+}

@@ -1,0 +1,1 @@
+CREATE INDEX idx_rfm_lookup ON cleaned_online_retail_data(CustomerID, InvoiceDate, Country);

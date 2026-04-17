@@ -1,0 +1,64 @@
+#Docker Compose is a tool for defining and running multi-container Docker applications. 
+#With Docker Compose, you use a YAML file to configure your application's services, networks, volumes, and other resources.
+
+
+#This section defines the containers that make up your application. Each service represents a container with its configuration
+services:  # Defines the services that make up the application
+  backend:  # The Spring application service
+    #Build Context: build: ./spring tells Docker to build an image using the Dockerfile located in the ./spring directory.
+    build: ./backend  # Builds the Docker image from the Dockerfile located in the './spring' directory
+    #Ports: ports: - "8080:8080" maps port 8080 of the container to port 8080 on the host, allowing external access to the Spring application running inside the container.
+    ports:
+      - "8080:8080"  # Exposes port 8080 on the host and maps it to port 8080 in the container
+    #Environment Variables: These are passed to the container at runtime. For example, DB_ADDRESS is set to jdbc:mysql://mysql:3306, indicating the application should connect to a MySQL database at the given JDBC URL.
+    environment:  # Environment variables for the Spring application
+      - DB_ADDRESS=jdbc:mysql://database:3306  # JDBC URL for the MySQL database, 'mysql' is the service name in docker-compose
+      - DB_DATABASE=template_db  # The name of the database to use
+      - DB_USER=root  # The username for the database
+      - DB_PASSWORD=pwd  # The password for the database
+    #Networks: The service is attached to spring-mysql and spring-react networks, enabling network communication with the MySQL and React services.
+    networks:  # Networks the Spring service is connected to
+      - backend-database  # Network for communicating with MySQL
+      - backend-frontend  # Network for communicating with the React service
+    #command: /bin/sh -c "while true; do sleep 3600; done"
+
+    volumes:
+      - ./database/scripts:/flyway/sql:ro #load scripts out of backend/scripts and put them in the container at flyway/sql read only
+    depends_on:
+      database:
+        condition: service_healthy #makes sure database/MariaDB is ready before trying to connect flyway
+  database:  # The MySQL database service
+    build: ./database  # Builds the Docker image from the Dockerfile in the './mysql' directory
+    #Environment Variables: Used to configure the MySQL server, like setting the root password (MYSQL_ROOT_PASSWORD) and specifying the database to create at startup (MYSQL_DATABASE).
+    environment:  # Environment variables for the MySQL service
+      - MYSQL_ROOT_PASSWORD=pwd  # The root password for MySQL
+      - MYSQL_DATABASE=template_db  # The database to create when the container starts
+    #Volumes: volumes: - mariadb_data:/var/lib/mysql mounts the named volume mariadb_data to /var/lib/mysql inside the container, providing persistent storage for the database.
+    volumes:  # Persistent storage for the MySQL database
+      - mariadb_data:/var/lib/mysql  # Maps 'mariadb_data' volume to the data directory of MySQL
+    networks:  # Network the MySQL service is connected to
+      - backend-database  # Network for communicating with the Spring service
+    ports:
+      - "3307:3306"  # Exposes port 3306 on the host and maps it to port 3306 in the container
+    healthcheck:
+      # Docker runs this command INSIDE the database container to check if MariaDB is ready.
+      test: ["CMD", "mariadb-admin", "ping", "-h", "localhost", "-uroot", "-ppwd"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  frontend:  # The React frontend service
+    build: ./frontend  # Builds the Docker image from the Dockerfile in the './react' directory
+    ports:
+      - "3000:3000"  # Exposes port 3000 on the host and maps it to port 3000 in the container
+    environment:  # Environment variable for the React service
+      - BACKEND_PROXY=http://backend:8080  # The URL to the backend Spring service
+    networks:  # Network the React service is connected to
+      - backend-frontend  # Network for communicating with the Spring service
+
+volumes:
+  mariadb_data:  # Defines a named volume 'mariadb_data' for the MySQL service to use for data persistence
+
+networks:  # Defines the networks used by the services
+  backend-database:  # Network used by the backend and database services
+  backend-frontend:  # Network used by the backend and frontend services

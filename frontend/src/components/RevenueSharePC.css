@@ -1,0 +1,74 @@
+/* ── Chart layout: pie left, legend table right ──────────────────────────── */
+
+.rs-chart-layout {
+    display: flex;
+    align-items: flex-start;
+    gap: 32px;
+    flex-wrap: wrap;
+}
+
+/* ── Legend table ────────────────────────────────────────────────────────── */
+
+.rs-legend {
+    flex: 1;
+    min-width: 260px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+    font-size: 13px;
+    color: #282c34;
+    align-self: center;
+}
+
+.rs-legend-header {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 0 16px;
+    padding: 0 4px 6px 4px;
+    border-bottom: 1px solid #ccc;
+    font-size: 11px;
+    font-weight: 600;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.rs-legend-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 0 16px;
+    align-items: center;
+    padding: 6px 4px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.rs-legend-row:last-child {
+    border-bottom: none;
+}
+
+.rs-legend-country {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+}
+
+.rs-legend-swatch {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+
+.rs-legend-revenue {
+    text-align: right;
+    color: #444;
+    white-space: nowrap;
+}
+
+.rs-legend-pct {
+    text-align: right;
+    font-weight: 700;
+    color: #282c34;
+    white-space: nowrap;
+    min-width: 52px;
+}

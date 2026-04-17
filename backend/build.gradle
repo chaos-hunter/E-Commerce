@@ -1,0 +1,104 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.1.3'
+    id 'io.spring.dependency-management' version '1.0.11.RELEASE'
+    id 'jacoco'
+    id 'checkstyle'
+}
+
+group = 'com.example.cis4900.spring'
+version = '1.0'
+archivesBaseName = "e-commerce-app"
+
+repositories {
+    mavenCentral()
+    jcenter()
+}
+
+jacoco {
+    toolVersion = "0.8.11"
+}
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+
+    implementation 'org.flywaydb:flyway-core'
+    runtimeOnly 'org.flywaydb:flyway-mysql'
+
+    runtimeOnly 'mysql:mysql-connector-java:8.0.11'
+    runtimeOnly 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.2.0'
+
+    //CSV parsing library
+    implementation 'com.opencsv:opencsv:5.5.2'
+
+    //Excel parsing library
+    implementation 'org.apache.poi:poi-ooxml:5.2.3'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.mockito:mockito-core:3.11.2'
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.1'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.1'
+}
+
+checkstyle {
+    toolVersion = "10.12.1"
+    configFile = file("${project.rootDir}/config/checkstyle/checkstyle.xml")
+    maxWarnings = 0
+}
+
+test {
+    useJUnitPlatform()
+    finalizedBy jacocoTestReport
+    reports {
+        junitXml.required = true
+        html.required = true
+    }
+}
+
+jacocoTestReport {
+    dependsOn test
+    reports {
+        xml.required = true
+        csv.required = true
+        html.required = true
+    }
+}
+
+task printJacocoSummary {
+    dependsOn jacocoTestReport
+    doLast {
+        def csv = file("${buildDir}/reports/jacoco/test/jacocoTestReport.csv")
+        if (!csv.exists()) {
+            println "No JaCoCo CSV report found at ${csv}"
+            return
+        }
+
+        long instrMissed = 0
+        long instrCovered = 0
+
+        csv.eachLine { line, idx ->
+            if (idx == 1) return // skip header
+            def cols = line.split(',')
+            if (cols.size() >= 5) {
+                try {
+                    instrMissed += cols[3] as long
+                    instrCovered += cols[4] as long
+                } catch (Exception e) {
+                    // ignore parse errors
+                }
+            }
+        }
+
+        long total = instrMissed + instrCovered
+        if (total > 0) {
+            def pct = (instrCovered * 100.0 / total)
+            println String.format("JaCoCo Coverage - Instructions: covered=%d missed=%d total=%d (%.2f%%)", instrCovered, instrMissed, total, pct)
+        } else {
+            println "JaCoCo Coverage - No instruction coverage data found."
+        }
+    }
+}
+
+
+
+

@@ -1,0 +1,225 @@
+/* wrapper */
+.rfm-histogram-wrapper {
+    background: #fff;
+    padding: 20px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+        'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+    color: #282c34;
+}
+
+/* header */
+.rfm-histogram-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.rfm-histogram-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #282c34;
+    margin: 0;
+}
+
+.rfm-histogram-subtitle {
+    font-size: 12px;
+    color: #666;
+    margin-top: 4px;
+    margin-bottom: 0;
+}
+
+/* filters */
+.rfm-histogram-filters {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.rfm-histogram-filter-label {
+    display: block;
+    font-size: 12px;
+    color: #444;
+    margin-bottom: 3px;
+}
+
+.rfm-histogram-input {
+    background: #fff;
+    border: 1px solid #777;
+    border-radius: 4px;
+    color: #282c34;
+    padding: 5px 8px;
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+}
+
+.rfm-histogram-input:focus {
+    border-color: #282c34;
+}
+
+.rfm-histogram-input-country {
+    width: 160px;
+}
+
+.rfm-histogram-apply-btn {
+    background: #282c34;
+    color: #fff;
+    border: 1px solid #282c34;
+    border-radius: 4px;
+    padding: 5px 14px;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+.rfm-histogram-apply-btn:hover:not(:disabled) {
+    background: #3d4451;
+    border-color: #3d4451;
+}
+
+.rfm-histogram-apply-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* error message */
+.rfm-histogram-error {
+    background: #fff0f0;
+    border: 1px solid #f5c6c6;
+    border-radius: 4px;
+    padding: 8px 12px;
+    color: #c0392b;
+    font-size: 13px;
+    margin-bottom: 16px;
+}
+
+/* stats cards */
+.rfm-histogram-summary-row {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.rfm-histogram-stat-card {
+    background: #f5f5f5;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 8px 14px;
+    min-width: 110px;
+}
+
+.rfm-histogram-stat-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: #282c34;
+}
+
+.rfm-histogram-stat-label {
+    font-size: 11px;
+    color: #666;
+    margin-top: 2px;
+}
+
+/* chart area */
+.rfm-histogram-charts-row {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+}
+
+.rfm-histogram-panel {
+    flex: 1;
+    min-width: 300px;
+}
+
+.rfm-histogram-panel-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #282c34;
+    margin: 0 0 12px;
+}
+
+/* empty / loading states */
+.rfm-histogram-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 320px;
+    color: #888;
+    gap: 8px;
+    font-size: 14px;
+}
+
+.rfm-histogram-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 300px;
+    color: #888;
+    font-size: 14px;
+}
+
+/* legend */
+.rfm-histogram-legend {
+    display: flex;
+    gap: 20px;
+    margin-top: 14px;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.rfm-histogram-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #555;
+}
+
+.rfm-histogram-legend-dot {
+    display: inline-block;
+    border-radius: 50%;
+    flex-shrink: 0;
+    width: 10px;
+    height: 10px;
+}
+
+/* tooltip */
+.rfm-histogram-tooltip {
+    background: #fff;
+    border: 1px solid #777;
+    border-radius: 4px;
+    padding: 10px 14px;
+    font-size: 13px;
+    color: #282c34;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    min-width: 160px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+}
+
+.rfm-histogram-tooltip-range {
+    font-weight: 700;
+    font-size: 14px;
+    color: #282c34;
+    margin: 0 0 6px;
+}
+
+.rfm-histogram-tooltip-count {
+    color: #444;
+    margin: 0 0 2px;
+    font-weight: 600;
+}
+
+.rfm-histogram-tooltip-outlier {
+    color: #c0392b;
+    font-size: 12px;
+    margin: 4px 0 0;
+}
